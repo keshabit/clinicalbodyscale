@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="custom_components/images/logo.png" alt="ClinicalBodyScale Logo" width="256">
+</p>
+
 # Clinical Body Scale (`clinicalbodyscale`)
 
 The **Clinical Body Scale** integration for Home Assistant transforms raw data from smart weight scales (such as Xiaomi, Sanitas, OpenScale-supported scales, etc.) into a comprehensive suite of clinical health and body composition metrics. By inputting basic biological attributes (height, gender, age, and activity level), this integration automatically computes advanced health indices directly within your Home Assistant ecosystem.
