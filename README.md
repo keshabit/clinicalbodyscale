@@ -1,149 +1,547 @@
 <p align="center">
-  <img src="custom_components/images/logo.png" alt="ClinicalBodyScale Logo" width="256">
+  <img src="custom_components/images/icon.png" alt="ClinicalBodyScale Logo" width="180">
 </p>
 
-# Clinical Body Scale (`clinicalbodyscale`)
+<h1 align="center">ClinicalBodyScale</h1>
 
-The **Clinical Body Scale** integration for Home Assistant transforms raw data from smart weight scales (such as Xiaomi, Sanitas, OpenScale-supported scales, etc.) into a comprehensive suite of clinical health and body composition metrics. By inputting basic biological attributes (height, gender, age, and activity level), this integration automatically computes advanced health indices directly within your Home Assistant ecosystem.
+<p align="center">
+  <strong>Clinical-grade Body Composition Analysis for Home Assistant</strong>
+</p>
 
----
+<p align="center">
+Transform your smart body scale into a comprehensive health assessment platform with scientifically based body composition calculations, intelligent multi-user identification, and fully local processing.
+</p>
 
-## 🚀 Key Benefits & Features
+<p align="center">
 
-* **Advanced Body Composition Metrics**: Beyond basic weight tracking, it calculates BMI, Basal Metabolic Rate (BMR), Visceral Fat, Lean Body Mass, Body Fat Percentage, Protein Percentage, Water Percentage, Bone Mass, Muscle Mass, Metabolic Age, Body Score, and Body Type.
-* **Dual-Frequency Impedance Support**: For high-end diagnostic scales, selecting the Dual Impedance mode enables advanced clinical parameters: Extracellular Water (ECW), Intracellular Water (ICW), ECW/TBW ratio, Body Cell Mass (BCM), and Skeletal Muscle Mass.
-* **Cold-Start State Restoration**: Built with Home Assistant’s native `RestoreSensor` API. It automatically reloads your last known historical data upon Home Assistant restarts and seeds the internal cache. **No more cumbersome template helpers or `input_number` entities are required to maintain persistent data**.
-* **Timezone-Aware Timestamps**: The `last_measurement_time` sensor automatically handles UTC-to-local timezone conversion, properly formatting the timestamp to reflect your local instance's configuration.
-* **Sophisticated Multi-User Profile Routing**: Easily support multiple people in the same household using one physical scale through 5 optional profile matching filters.
+![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2026.3%2B-41BDF5?style=for-the-badge\&logo=homeassistant)  ![HACS](https://img.shields.io/badge/HACS-Custom%20Repository-41BDF5?style=for-the-badge)  ![Python](https://img.shields.io/badge/Python-3.13-blue?style=for-the-badge\&logo=python)  ![License](https://img.shields.io/github/license/keshabit/clinicalbodyscale?style=for-the-badge)
 
----
-
-## 🛠 Multi-User Profile Identification Methods
-
-When multiple users share a scale, you can configure individual integration entries for each person. The component isolates measurements using one of the following strategies:
-
-1. **No Filter (`none`)**: Accepts every incoming measurement unconditionally (best for single-user setups).
-2. **Profile ID Filter (`profile_id`)**: Evaluates a numeric profile ID (1 through 5) broadcasted by your smart scale's sensor.
-3. **Weight Range Filter (`weight_range`)**: Restricts entries to a strict half-open interval `[min, max[` in kilograms.
-4. **Nearest Weight Filter (`nearest_weight`)**: Evaluates incoming weights against the user's last known weight within a specified tolerance boundary.
-5. **Interactive Notification (`notification`)**: Sends an interactive push notification via the `mobile_app` integration when a weight change occurs. Tapping your name fires an action event that instantly routes the pending data to your profile.
+</p>
 
 ---
 
-## 📋 Pre-requisites & Requirements
+## Why ClinicalBodyScale?
 
-* **Home Assistant Core**: version `2026.3.0` or higher.
-* **Source Scale Sensors**: A pre-existing weight sensor entity (and optional impedance sensor entities) setup in Home Assistant via integrations like Bluetooth, Zigbee, MQTT, ESPHome, or OpenScale.
+Most smart scales provide only basic measurements such as weight or vendor-specific body fat estimates. ClinicalBodyScale brings advanced body composition analysis directly into Home Assistant by applying scientifically validated calculation models to your scale data.
 
----
+Whether your scale connects through Bluetooth, ESPHome, MQTT, Zigbee, OpenScale, Xiaomi integrations, or other Home Assistant integrations, ClinicalBodyScale converts raw measurements into meaningful health metrics while keeping all processing completely local.
 
-## 📦 Installation Instructions
-
-### Method 1: Via HACS (Recommended)
-
-1. Navigate to **HACS** (Home Assistant Community Store) in your sidebar.
-2. Click the three dots in the top right corner and select **Custom repositories**.
-3. Add the repository URL: `https://github.com/keshabit/clinicalbodyscale` and select **Integration** as the category.
-4. Click **Add**, then find **Clinical Body Scale** in the listing and click **Download**.
-5. **Restart Home Assistant** to load the custom component.
-
-### Method 2: Manual Installation
-
-1. Download the source code archive for version `1.4.0`.
-2. Extract the archive and copy the `clinicalbodyscale` folder into your Home Assistant configuration's `custom_components/` directory (e.g., `/config/custom_components/clinicalbodyscale/`).
-3. **Restart Home Assistant**.
+Unlike vendor mobile applications, ClinicalBodyScale is designed to integrate naturally into Home Assistant dashboards, automations, long-term statistics, and notifications.
 
 ---
 
-## ⚙️ Step-by-Step UI Setup Guide
+# ✨ Features
 
-The integration is fully managed through a multi-step user-friendly configuration flow.
+### 🩺 Clinical Body Composition
 
-1. In Home Assistant, go to **Settings** ➡️ **Devices & Services**.
-2. Click **+ Add Integration** in the bottom right corner.
-3. Search for **Clinical Body Scale** and select it.
-4. Follow the interactive setup prompts across four simple stages:
+Generate more than **25 health metrics**, including:
 
-### Step 1: User Identity
-
-* **Name**: Enter the name of the user profile (e.g., `John`).
-* **Birthday**: Enter the date of birth (used for continuous age calculations).
-* **Gender**: Select `Male` or `Female`.
-
-### Step 2: Biological & Operational Modes
-
-* **Height**: Provide height in centimeters (cm).
-* **Activity Level**: Choose your corresponding physical multiplier: `Sedentary` (Default), `Light`, `Moderate`, `Active`, or `Very Active` (used to evaluate metabolic adjustments).
-* **Calculation Mode**: Select your preferred algorithm formula base:
-* `Xiaomi` (Default)
-* `OpenScale`
-* `Sanitas`
-* `Science`
-
-
-* **Impedance Mode**: Select based on your physical scale hardware capabilities:
-* `None` (Only generates weight-based sensors like BMI, BMR, and Visceral Fat)
-* `Standard` (Requires a single overall raw impedance sensor)
-* `Dual Frequency` (Requires separate low-frequency and high-frequency impedance sensors)
-
-
-* **Profile Method**: Choose your preferred Multi-User identification method (`none`, `profile_id`, `weight_range`, `nearest_weight`, or `notification`).
-
-### Step 3: Target Sensor Links
-
-* Select your source **Weight Sensor** entity (supports `sensor`, `number`, or `input_number` domains).
-* *(Conditional)* Select the corresponding **Impedance Sensor** or **Impedance Low / High Sensors** based on Step 2.
-* *(Conditional)* Select the **Scale Profile ID Sensor** if using the `profile_id` routing method.
-
-### Step 4: Profile Filter Configuration
-
-*(This step dynamically adapts to the routing method chosen in Step 2)*
-
-* **Weight Range**: Specify the minimum and maximum weight intervals.
-* **Nearest Weight**: Provide an initial baseline weight and a tolerance threshold (e.g., `5 kg`).
-* **Notification**: Select your targeted smartphone or tablet device linked through the Home Assistant Companion App (`mobile_app`).
-
-Click **Submit**, and the user profile will be created! Repeat the process to create independent tracking entities for additional family members.
+* Body Mass Index (BMI)
+* Body Fat Percentage
+* Lean Body Mass
+* Muscle Mass
+* Skeletal Muscle Mass
+* Bone Mass
+* Body Water
+* Protein Percentage
+* Basal Metabolic Rate (BMR)
+* Visceral Fat
+* Metabolic Age
+* Body Score
+* Body Type
+* Ideal Body Weight
+* Last Measurement Timestamp
 
 ---
 
-## 🗃 Generated Sensors Reference
+### ⚡ Dual-Frequency Bioelectrical Impedance
 
-Depending on your configuration, the following sensors will be exposed under your profile prefix:
+Supports advanced body composition scales capable of dual-frequency impedance measurements.
 
-| Sensor Translation Key | Domain / Device Class | Unit | Required Mode |
-| --- | --- | --- | --- |
-| **Weight** | `sensor.weight` | `kg` | Always Active |
-| **Height** | `sensor.distance` | `cm` | Always Active |
-| **BMI** | Measurement | Index | Always Active |
-| **Ideal Weight** | `sensor.weight` | `kg` | Always Active |
-| **Basal Metabolism** | Measurement | `kcal` | Always Active |
-| **Visceral Fat** | Measurement | Rating | Always Active |
-| **Last Measurement Time** | Timestamp String | `HH:MM DD/MM/YY` | Always Active |
-| **Lean Body Mass** | `sensor.weight` | `kg` | Standard / Dual |
-| **Body Fat** | Measurement | `%` | Standard / Dual |
-| **Protein** | Measurement | `%` | Standard / Dual |
-| **Water** | Measurement | `%` | Standard / Dual |
-| **Bone Mass** | `sensor.weight` | `kg` | Standard / Dual |
-| **Muscle Mass** | `sensor.weight` | `kg` | Standard / Dual |
-| **Metabolic Age** | Measurement | Years | Standard / Dual |
-| **Body Score** | Measurement | Points | Standard / Dual |
-| **Body Type** | Text Status | String | Standard / Dual |
-| **Impedance** | Measurement | `Ω` | Standard Only |
-| **Extracellular Water** | Measurement | `L` | Dual Only |
-| **Intracellular Water** | Measurement | `L` | Dual Only |
-| **ECW/TBW Ratio** | Measurement | `%` | Dual Only |
-| **Body Cell Mass** | `sensor.weight` | `kg` | Dual Only |
-| **Skeletal Muscle Mass** | `sensor.weight` | `kg` | Dual Only |
-| **Impedance High** | Measurement | `Ω` | Dual Only |
-| **Impedance Low** | Measurement | `Ω` | Dual Only |
+Additional clinical metrics include:
+
+* Extracellular Water (ECW)
+* Intracellular Water (ICW)
+* ECW / TBW Ratio
+* Body Cell Mass (BCM)
+* Skeletal Muscle Mass
+* High Frequency Impedance
+* Low Frequency Impedance
 
 ---
 
-## 🔍 Troubleshooting & Issues
+### 👨‍👩‍👧 Intelligent Multi-User Support
 
-If you encounter unexpected metric variations or debugging errors:
+One smart scale.
 
-1. Ensure your source sensors are correctly delivering numerical floats or integers.
-2. Verify that your calculation mode aligns with your scale's factory app settings.
-3. Open a detailed technical issue tracker via the [Official Issues Repository](https://github.com/keshabit/clinicalbodyscale/issues).
+Multiple family members.
+
+No cloud services required.
+
+ClinicalBodyScale automatically routes measurements using five configurable identification methods:
+
+* No Filtering
+* Scale Profile ID
+* Weight Range
+* Nearest Previous Weight
+* Interactive Mobile Notifications
+
+Perfect for households sharing a single scale.
+
+---
+
+### 🔄 Persistent Measurements
+
+Built using Home Assistant's native **RestoreSensor** API.
+
+After a Home Assistant restart:
+
+* Previous measurements are restored automatically.
+* Internal history cache is rebuilt.
+* No helper entities are required.
+* No template sensors are necessary.
+
+Everything continues exactly where it left off.
+
+---
+
+### 🧠 Multiple Calculation Models
+
+Choose the algorithm that best matches your scale.
+
+Supported calculation models include:
+
+| Model     | Best For                          |
+| --------- | --------------------------------- |
+| Xiaomi    | Xiaomi Mi Body Composition Scales |
+| OpenScale | OpenScale compatible devices      |
+| Sanitas   | Sanitas diagnostic scales         |
+| Science   | General scientific formulas       |
+
+---
+
+## What Makes ClinicalBodyScale Different?
+
+Many integrations simply expose values reported by the manufacturer's application.
+
+ClinicalBodyScale takes a different approach.
+
+Instead of trusting vendor-provided estimates, it computes body composition locally using established formulas and configurable calculation models. This makes it suitable for users who want consistent measurements regardless of scale brand while benefiting from Home Assistant's automation and visualization capabilities.
+
+The integration is designed to be extensible, allowing future support for additional algorithms, new diagnostic metrics, and more advanced body composition analysis as compatible hardware becomes available.
+
+---
+
+# 📦 Installation
+
+ClinicalBodyScale can be installed using **HACS (recommended)** or by manually copying the integration into your Home Assistant configuration.
+
+## Installation Methods
+
+| Method | Difficulty      | Recommended |
+| ------ | --------------- | ----------- |
+| HACS   | ⭐ Easy          | ✅ Yes       |
+| Manual | ⭐⭐ Intermediate | ✔ Supported |
+
+---
+
+# 🚀 Install with HACS (Recommended)
+
+Using HACS provides automatic update notifications and makes future upgrades effortless.
+
+### Step 1 — Open HACS
+
+In Home Assistant, navigate to:
+
+```
+HACS → Integrations
+```
+
+Click the **⋮** menu in the upper-right corner and select:
+
+```
+Custom repositories
+```
+
+---
+
+### Step 2 — Add Repository
+
+Repository URL
+
+```
+https://github.com/keshabit/clinicalbodyscale
+```
+
+Category
+
+```
+Integration
+```
+
+Click **Add**.
+
+---
+
+### Step 3 — Install
+
+Search for
+
+```
+ClinicalBodyScale
+```
+
+Select the integration and click
+
+```
+Download
+```
+
+---
+
+### Step 4 — Restart Home Assistant
+
+Restart Home Assistant to load the custom component.
+
+After restarting:
+
+```
+Settings
+→ Devices & Services
+→ Add Integration
+```
+
+Search for
+
+```
+ClinicalBodyScale
+```
+
+and begin the configuration wizard.
+
+---
+
+# 📁 Manual Installation
+
+If you prefer manual installation:
+
+Download the latest release from GitHub.
+
+Copy
+
+```
+custom_components/
+    clinicalbodyscale/
+```
+
+into
+
+```
+config/
+└── custom_components/
+    └── clinicalbodyscale/
+```
+
+Your directory should look similar to:
+
+```
+config/
+
+├── automations.yaml
+├── configuration.yaml
+├── custom_components
+│
+└── clinicalbodyscale
+    ├── __init__.py
+    ├── manifest.json
+    ├── config_flow.py
+    ├── sensor.py
+    ├── coordinator.py
+    ├── calculations.py
+    ├── profile.py
+    ├── translations
+    └── icons.json
+```
+
+Restart Home Assistant.
+
+---
+
+# ⚙️ Configuration
+
+ClinicalBodyScale uses Home Assistant's modern **Config Flow**.
+
+No YAML configuration is required.
+
+Navigate to
+
+```
+Settings
+→ Devices & Services
+→ Add Integration
+```
+
+Search for
+
+```
+ClinicalBodyScale
+```
+
+The setup wizard guides you through every step.
+
+---
+
+# Step 1 — User Information
+
+Enter your personal information.
+
+| Field    | Description                          |
+| -------- | ------------------------------------ |
+| Name     | Friendly profile name                |
+| Birthday | Used for continuous age calculations |
+| Gender   | Male or Female                       |
+
+The birthday is stored so age automatically updates over time.
+
+No yearly adjustments are necessary.
+
+---
+
+# Step 2 — Body Parameters
+
+Provide your biological information.
+
+| Setting           | Description                           |
+| ----------------- | ------------------------------------- |
+| Height            | Height in centimeters                 |
+| Activity Level    | Daily activity multiplier             |
+| Calculation Model | Xiaomi, OpenScale, Sanitas or Science |
+| Impedance Mode    | None, Standard or Dual Frequency      |
+| Profile Method    | Multi-user identification method      |
+
+---
+
+## Activity Levels
+
+Choose the option that best matches your lifestyle.
+
+| Level       | Description                                |
+| ----------- | ------------------------------------------ |
+| Sedentary   | Little or no exercise                      |
+| Light       | Exercise 1–3 days/week                     |
+| Moderate    | Exercise 3–5 days/week                     |
+| Active      | Daily exercise                             |
+| Very Active | Athlete or physically demanding occupation |
+
+---
+
+## Calculation Models
+
+ClinicalBodyScale supports multiple body composition algorithms.
+
+| Algorithm | Recommended For                 |
+| --------- | ------------------------------- |
+| Xiaomi    | Xiaomi Body Composition scales  |
+| OpenScale | OpenScale users                 |
+| Sanitas   | Sanitas diagnostic scales       |
+| Science   | Generic scientific calculations |
+
+This allows users to match calculations with the scale they own.
+
+---
+
+## Impedance Modes
+
+### None
+
+Uses only weight.
+
+Generates:
+
+* BMI
+* BMR
+* Ideal Weight
+* Visceral Fat
+
+No impedance sensor required.
+
+---
+
+### Standard
+
+Uses a single impedance sensor.
+
+Adds:
+
+* Body Fat
+* Water
+* Protein
+* Muscle
+* Bone
+* Body Score
+* Body Type
+* Metabolic Age
+
+---
+
+### Dual Frequency
+
+Supports professional diagnostic scales.
+
+Adds advanced metrics:
+
+* ECW
+* ICW
+* BCM
+* Skeletal Muscle
+* ECW/TBW Ratio
+* High Frequency Impedance
+* Low Frequency Impedance
+
+---
+
+# Step 3 — Link Sensors
+
+Select your existing Home Assistant entities.
+
+Depending on your configuration, you may be asked to select:
+
+| Entity                    | Required          |
+| ------------------------- | ----------------- |
+| Weight Sensor             | ✅ Always          |
+| Standard Impedance Sensor | Standard Mode     |
+| Low Frequency Sensor      | Dual Mode         |
+| High Frequency Sensor     | Dual Mode         |
+| Scale Profile Sensor      | Profile ID Method |
+
+Supported entity domains include:
+
+* sensor
+* number
+* input_number
+
+---
+
+# Step 4 — Multi-User Identification
+
+ClinicalBodyScale can distinguish multiple users sharing a single scale.
+
+Choose one of the following identification methods.
+
+| Method         | Description                                           |
+| -------------- | ----------------------------------------------------- |
+| None           | Accept every measurement                              |
+| Profile ID     | Uses scale profile number                             |
+| Weight Range   | Uses configured weight interval                       |
+| Nearest Weight | Matches nearest historical weight                     |
+| Notification   | Ask the user through the Home Assistant Companion App |
+
+Each user simply creates their own integration entry.
+
+ClinicalBodyScale automatically routes incoming measurements to the correct profile.
+
+---
+
+# 🎯 Configuration Complete
+
+Once setup is finished the integration immediately begins monitoring incoming measurements.
+
+Every new reading automatically updates all calculated body composition metrics.
+
+No templates.
+
+No helper entities.
+
+No YAML.
+
+Everything is managed directly through the Home Assistant user interface.
+
+---
+
+# 👨‍👩‍👧 Intelligent Multi-User Identification
+
+Sharing a single smart scale across multiple people is one of the biggest challenges in home health monitoring.
+
+ClinicalBodyScale provides **five independent profile identification methods**, allowing every member of the household to maintain their own body composition history while using the same physical scale.
+
+Each Home Assistant profile is configured independently and processes only the measurements that belong to that user.
+
+---
+
+## Available Identification Methods
+
+| Method                       | Best For                       | Description                                                                             |
+| ---------------------------- | ------------------------------ | --------------------------------------------------------------------------------------- |
+| **None**                     | Single-user households         | Accept every measurement without filtering.                                             |
+| **Profile ID**               | Xiaomi and supported scales    | Matches the profile number reported by the scale.                                       |
+| **Weight Range**             | Families with distinct weights | Accepts measurements only within a configured weight range.                             |
+| **Nearest Weight**           | Similar-weight households      | Compares new measurements to the user's previous weight using a configurable tolerance. |
+| **Interactive Notification** | Maximum accuracy               | Sends a notification asking who is currently on the scale.                              |
+
+---
+
+## Profile ID
+
+Some smart scales broadcast an internal profile identifier.
+
+Example:
+
+| Scale Output | Assigned User |
+| ------------ | ------------- |
+| Profile 1    | Alice         |
+| Profile 2    | Bob           |
+| Profile 3    | Charlie       |
+
+ClinicalBodyScale automatically routes measurements to the correct user without additional interaction.
+
+---
+
+## Weight Range
+
+Useful when household members have clearly different body weights.
+
+Example:
+
+| User    | Weight Range |
+| ------- | ------------ |
+| Alice   | 48–58 kg     |
+| Bob     | 70–82 kg     |
+| Charlie | 92–108 kg    |
+
+Incoming measurements outside the configured range are ignored.
+
+---
+
+## Nearest Weight
+
+Ideal when users have similar body weights.
+
+ClinicalBodyScale compares each new measurement with the user's most recent recorded weight.
+
+Example:
+
+| Previous Weight | New Reading | Result   |
+| --------------- | ----------- | -------- |
+| 74.3 kg         | 74.8 kg     | Accepted |
+| 74.3 kg         | 88.5 kg     | Ignored  |
+
+The acceptable tolerance can be configured during setup.
+
+---
+
+# 🧮 Clinical Calculations
+
+ClinicalBodyScale performs all calculations locally using configurable body composition models.
+
+Supported calculation engines include:
+
+| Algorithm | Typical Use                    |
+| --------- | ------------------------------ |
+| Xiaomi    | Xiaomi Body Composition Scales |
+| OpenScale | OpenScale-compatible devices   |
+| Sanitas   | Sanitas diagnostic scales      |
+| Science   | General scientific equations   |
+
+Unlike vendor applications, calculations remain consistent regardless of cloud connectivity or mobile applications.
+
+
