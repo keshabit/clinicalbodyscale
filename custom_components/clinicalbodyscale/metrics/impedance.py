@@ -37,7 +37,9 @@ def _is_dual(config: Mapping[str, Any]) -> bool:
 def _get_z_lf(metrics: Mapping[Metric, StateType | datetime]) -> float:
     z1 = to_float(metrics.get(Metric.IMPEDANCE_LOW))
     z2 = to_float(metrics.get(Metric.IMPEDANCE_HIGH))
-    return max(z1, z2) if z1 > 0 and z2 > 0 else z1
+    if z1 > 0 or z2 > 0:
+        return max(z1, z2) if z1 > 0 and z2 > 0 else z1
+    return to_float(metrics.get(Metric.IMPEDANCE))
 
 
 def _get_z_hf(metrics: Mapping[Metric, StateType | datetime]) -> float:
@@ -70,20 +72,25 @@ def get_lbm(
         return 0.0
 
     # Sanitas / Beurer openScale Formula
+    # Verified against the Beurer/Sanitas BIA equation used by openScale's
+    # device driver for these scales. NOTE: the previous female coefficients
+    # here (0.485 / 0.298 / 4.34) were incorrect — they had accidentally been
+    # copied from the male branch except for the weight/constant terms. The
+    # correct, source-verified female coefficients are 0.474 / 0.180 / 5.03.
     if mode == ALGO_SANITAS:
         if gender == Gender.MALE:
             lbm = 0.485 * ((h * h) / z) + 0.338 * w + 5.32
         else:
-            lbm = 0.485 * ((h * h) / z) + 0.298 * w + 4.34
+            lbm = 0.474 * ((h * h) / z) + 0.180 * w + 5.03
         return check_value_constraints(lbm, 10.0, 150.0)
 
-    # Standard openScale Formula
+    # Standard openScale Formula correction
     elif mode == ALGO_OPENSCALE:
         if gender == Gender.MALE:
             lbm = 0.503 * ((h * h) / z) + 0.165 * w - 0.158 * a + 17.8
         else:
             lbm = 0.490 * ((h * h) / z) + 0.150 * w - 0.130 * a + 11.5
-        return float(min(lbm, w * 0.98))
+        return check_value_constraints(lbm, 10.0, 150.0)
 
     # Xiaomi / Science / Dual (S400) baseline Formula
     else:
@@ -103,6 +110,7 @@ def get_fat_percentage(
     """Calculate Body Fat Percentage."""
     w = to_float(metrics.get(Metric.WEIGHT))
     gender = config.get(CONF_GENDER)
+    lbm = to_float(metrics.get(Metric.LBM))
     mode = config.get(CONF_CALCULATION_MODE, ALGO_XIAOMI)
 
     if w <= 0 or gender is None:
@@ -114,9 +122,15 @@ def get_fat_percentage(
         return check_value_constraints(fat_pct, 3.0, 75.0)
 
     elif mode == ALGO_OPENSCALE:
-        lbm = get_lbm(config, metrics)
-        fat_pct = ((w - lbm) / w) * 100.0
-        return check_value_constraints(fat_pct, 5.0, 75.0)
+        # OpenScale calculates Fat % strictly derived from Lean Body Mass.
+        # Clamp range aligned with the other impedance-based modes (was
+        # 1.0-80.0, which is wider than physiologically plausible and wider
+        # than every other mode — that mismatched ceiling let inflated LBM
+        # errors pass straight through instead of being caught).
+        if w > 0 and lbm > 0:
+            fat_pct = ((w - lbm) / w) * 100.0
+            return check_value_constraints(fat_pct, 3.0, 75.0)
+        return 0.0
 
     elif _is_dual(config) or mode == ALGO_SCIENCE:
         lbm = get_lbm(config, metrics)
@@ -152,9 +166,21 @@ def get_water_percentage(
         return check_value_constraints(water_pct, 35.0, 75.0)
 
     elif mode == ALGO_OPENSCALE:
-        lbm = get_lbm(config, metrics)
-        water_pct = (lbm * 0.73 / w) * 100.0
-        return check_value_constraints(water_pct, 35.0, 75.0)
+        # Fetch LBM; calculate on the fly if missing
+        lbm = to_float(metrics.get(Metric.LBM))
+        if lbm == 0.0:
+            lbm = get_lbm(config, metrics)
+
+        # Clamp range corrected from 10.0-80.0 (physiologically impossible —
+        # no living human is 10% water) to 35.0-75.0, matching the
+        # Deurenberg physiological limit used elsewhere (clamp_water_percentage)
+        # and the other calculation modes. This also fixes a missing return:
+        # previously, if w<=0 or lbm<=0 this branch fell through and the
+        # function implicitly returned None, which could crash the sensor.
+        if w > 0 and lbm > 0:
+            water_pct = (lbm * 0.73 / w) * 100.0
+            return check_value_constraints(water_pct, 35.0, 75.0)
+        return 0.0
 
     elif _is_dual(config) or mode == ALGO_SCIENCE:
         water_pct = (100.0 - fat_pct) * 0.73

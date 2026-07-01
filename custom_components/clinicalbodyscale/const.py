@@ -65,6 +65,31 @@ PENDING_MEASUREMENT_TIMEOUT = 300
 EVENT_MOBILE_APP_NOTIFICATION_ACTION = "mobile_app_notification_action"
 NOTIFICATION_TAG = "clinicalbodyscale_user_selection"
 
+# --- Activity Level Configuration ---
+CONF_ACTIVITY_LEVEL = "activity_level"
+
+ACTIVITY_SEDENTARY = "sedentary"
+ACTIVITY_LIGHT = "light"
+ACTIVITY_MODERATE = "moderate"
+ACTIVITY_ACTIVE = "active"
+ACTIVITY_VERY_ACTIVE = "very_active"
+
+ACTIVITY_LEVEL_OPTIONS = [
+    ACTIVITY_SEDENTARY,
+    ACTIVITY_LIGHT,
+    ACTIVITY_MODERATE,
+    ACTIVITY_ACTIVE,
+    ACTIVITY_VERY_ACTIVE,
+]
+
+ACTIVITY_MULTIPLIERS = {
+    ACTIVITY_SEDENTARY: 1.2,
+    ACTIVITY_LIGHT: 1.375,
+    ACTIVITY_MODERATE: 1.55,
+    ACTIVITY_ACTIVE: 1.725,
+    ACTIVITY_VERY_ACTIVE: 1.9,
+}
+
 # ---------------------------------------------------------------------------
 # Calculation mode (standard impedance only; dual mode uses fixed formulas)
 # xiaomi    : Zepp Life / Mi Fit proprietary algorithm

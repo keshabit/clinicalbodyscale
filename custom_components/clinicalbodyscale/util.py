@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
-from .const import CONF_GENDER, CONF_HEIGHT
+from .const import CONF_GENDER, CONF_HEIGHT,CONF_CALCULATION_MODE, ALGO_OPENSCALE, ALGO_XIAOMI
 from .models import Gender
 
 
@@ -29,14 +29,20 @@ def to_float(val: Any, default: float = 0.0) -> float:
     return default
 
 
-def get_ideal_weight(config: Mapping[str, Any]) -> float:
-    """Get ideal weight based on height and gender."""
+def get_ideal_weight(config: Mapping[str, Any], metrics: Mapping[Any, Any] = None) -> float:
+    """Get ideal weight based on height, gender, and calculation mode."""
     height = float(config[CONF_HEIGHT])
     gender = config[CONF_GENDER]
+    mode = config.get(CONF_CALCULATION_MODE, ALGO_XIAOMI)
 
+    # OpenScale targets an exact BMI of 22.0 for ideal weight
+    if mode == ALGO_OPENSCALE:
+        ideal = 22.0 * (height / 100.0) ** 2
+        return round(ideal, 2)
+
+    # Default / Xiaomi (Modified Broca index)
     ideal = (height - 70) * 0.6 if gender == Gender.FEMALE else (height - 80) * 0.7
-
-    return round(ideal, 1)
+    return round(ideal, 2)
 
 
 def get_bmr_schofield(weight: float, age: int, gender: Gender) -> float:

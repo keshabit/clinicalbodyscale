@@ -19,8 +19,14 @@ from homeassistant.helpers import selector
 from homeassistant.util import slugify
 
 from .const import (
+    ALGO_OPENSCALE,
+    ALGO_SANITAS,
+    ALGO_SCIENCE,
     ALGO_XIAOMI,
     CALCULATION_MODE_OPTIONS,
+    CONF_ACTIVITY_LEVEL,
+    ACTIVITY_LEVEL_OPTIONS,
+    ACTIVITY_SEDENTARY,
     CONF_BIRTHDAY,
     CONF_CALCULATION_MODE,
     CONF_GENDER,
@@ -105,6 +111,28 @@ def _get_modes_schema(
                     unit_of_measurement="cm",
                 )
             ),
+            # -----> PASTE THIS NEW BLOCK HERE <-----
+        vol.Optional(
+            CONF_ACTIVITY_LEVEL, default=ACTIVITY_SEDENTARY
+        ): selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=ACTIVITY_LEVEL_OPTIONS,
+                mode=selector.SelectSelectorMode.DROPDOWN,
+                translation_key="activity_level",
+            )
+        ),
+        # -----> END OF NEW BLOCK <-----
+
+        vol.Required(
+            CONF_CALCULATION_MODE,
+            default=defaults.get(CONF_CALCULATION_MODE, ALGO_XIAOMI),
+        ): selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=CALCULATION_MODE_OPTIONS,
+                mode=selector.SelectSelectorMode.DROPDOWN,
+                translation_key="calculation_mode",
+            )
+        ),
             vol.Required(
                 CONF_CALCULATION_MODE,
                 default=defaults.get(CONF_CALCULATION_MODE, ALGO_XIAOMI),
@@ -135,6 +163,15 @@ def _get_modes_schema(
                     translation_key="profile_method",
                 )
             ),
+            vol.Optional(
+            CONF_ACTIVITY_LEVEL, default=ACTIVITY_SEDENTARY
+            ): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                options=ACTIVITY_LEVEL_OPTIONS,
+                mode=selector.SelectSelectorMode.DROPDOWN,
+                translation_key="activity_level"
+            )
+        ),
         }
     )
 

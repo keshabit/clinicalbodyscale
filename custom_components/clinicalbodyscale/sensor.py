@@ -12,10 +12,11 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE, UnitOfMass
+from homeassistant.const import PERCENTAGE, UnitOfMass, UnitOfLength
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import StateType
+from homeassistant.util import dt as dt_util
 
 from .const import (
     ATTR_BCM,
@@ -43,6 +44,7 @@ from .const import (
     CONF_SENSOR_IMPEDANCE_HIGH,
     CONF_SENSOR_IMPEDANCE_LOW,
     CONF_SENSOR_WEIGHT,
+    CONF_HEIGHT,
     DOMAIN,
     HANDLERS,
     IMPEDANCE_MODE_DUAL,
@@ -112,11 +114,39 @@ _BASE_SENSORS: tuple[
         Metric.WEIGHT,
         lambda _, config: {ATTR_IDEAL: get_ideal_weight(config)},
     ),
+        # ADD NEW HEIGHT SENSOR
+    (
+        SensorEntityDescription(
+            key=CONF_HEIGHT,
+            translation_key="height",
+            icon="mdi:human-male-height",
+            native_unit_of_measurement=UnitOfLength.CENTIMETERS,
+            device_class=SensorDeviceClass.DISTANCE,
+            state_class=SensorStateClass.MEASUREMENT,
+            suggested_display_precision=0,
+        ),
+        Metric.HEIGHT,
+        None,
+    ),
+    # ADD NEW IDEAL WEIGHT SENSOR
+    (
+        SensorEntityDescription(
+            key=ATTR_IDEAL,
+            translation_key="ideal",
+            icon="mdi:scale-bathroom",
+            native_unit_of_measurement=UnitOfMass.KILOGRAMS,
+            device_class=SensorDeviceClass.WEIGHT,
+            state_class=SensorStateClass.MEASUREMENT,
+            suggested_display_precision=2,
+        ),
+        Metric.IDEAL_WEIGHT,
+        None,
+    ),
     (
         SensorEntityDescription(
             key=ATTR_LAST_MEASUREMENT_TIME,
             translation_key="last_measurement_time",
-            device_class=SensorDeviceClass.TIMESTAMP,
+            #device_class=SensorDeviceClass.TIMESTAMP, #Commented to change the format
         ),
         Metric.LAST_MEASUREMENT_TIME,
         None,
@@ -422,18 +452,14 @@ class BodyScaleSensor(BodyScaleBaseEntity, RestoreSensor):
             if self.entity_description.key == ATTR_LAST_MEASUREMENT_TIME and isinstance(
                 last_sensor_data.native_value, str
             ):
-                # Timestamp sensors may be persisted as ISO strings.
-                try:
-                    self._attr_native_value = datetime.fromisoformat(
-                        last_sensor_data.native_value
-                    )
-                except ValueError:
-                    self._attr_native_value = None
+                # Safely restore the custom text string to the UI state
+                self._attr_native_value = last_sensor_data.native_value
             else:
-                # RestoreSensor may return Decimal; cast to our union type.
                 self._attr_native_value = cast(
                     StateType | datetime, last_sensor_data.native_value
                 )
+                # Only seed the internal metrics handler cache if it's a standard metric type
+                self._handler.restore_metric(self._metric, self._attr_native_value)
 
             if self._get_attributes and self._attr_native_value is not None:
                 self._attr_extra_state_attributes = dict(
@@ -441,6 +467,8 @@ class BodyScaleSensor(BodyScaleBaseEntity, RestoreSensor):
                         self._attr_native_value, dict(self._handler.config)
                     )
                 )
+
+            self.async_write_ha_state()
 
             # Seed the handler cache — no lock or counter needed because
             # restore_metric() only writes to the TTL cache; the live
@@ -454,7 +482,17 @@ class BodyScaleSensor(BodyScaleBaseEntity, RestoreSensor):
             """Handle a new sensor value and update the entity state."""
             if self.entity_description.key == ATTR_LAST_MEASUREMENT_TIME:
                 if isinstance(value, datetime):
-                    self._attr_native_value = value
+                    # BUG FIX: `value` is produced by dt_util.utcnow() in the
+                    # metrics handler, i.e. it's UTC. strftime() on a
+                    # timezone-aware datetime does NOT convert it to local
+                    # time — it just prints whatever timezone the datetime
+                    # already carries, which was UTC/GMT. Converting with
+                    # dt_util.as_local() first makes the displayed
+                    # "HH:MM DD/MM/YY" reflect the Home Assistant instance's
+                    # configured local timezone instead of GMT.
+                    self._attr_native_value = dt_util.as_local(value).strftime(
+                        "%H:%M %d/%m/%y"
+                    )
                 elif isinstance(value, str):
                     try:
                         self._attr_native_value = datetime.fromisoformat(value)

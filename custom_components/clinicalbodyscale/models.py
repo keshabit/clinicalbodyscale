@@ -13,6 +13,7 @@ from .const import (
     ATTR_ECW_TBW_RATIO,
     ATTR_EXTRACELLULAR_WATER,
     ATTR_FAT,
+    ATTR_IDEAL,
     ATTR_INTRACELLULAR_WATER,
     ATTR_LAST_MEASUREMENT_TIME,
     ATTR_LBM,
@@ -26,6 +27,7 @@ from .const import (
     CONF_SENSOR_IMPEDANCE_HIGH,
     CONF_SENSOR_IMPEDANCE_LOW,
     CONF_SENSOR_WEIGHT,
+    CONF_HEIGHT,
 )
 
 
@@ -42,6 +44,8 @@ class Metric(StrEnum):
     STATUS = "status"
     AGE = ATTR_AGE
     WEIGHT = CONF_SENSOR_WEIGHT
+    HEIGHT = CONF_HEIGHT           # <--- ADDED
+    IDEAL_WEIGHT = ATTR_IDEAL      # <--- ADDED
 
     # impedance mode
     IMPEDANCE = CONF_SENSOR_IMPEDANCE
@@ -55,7 +59,7 @@ class Metric(StrEnum):
     BMR = ATTR_BMR
     VISCERAL_FAT = ATTR_VISCERAL
     LBM = ATTR_LBM
-    LEAN_BODY_MASS = ATTR_LBM  # Fixed indentation (4 spaces instead of a tab)
+    LEAN_BODY_MASS = ATTR_LBM
     FAT_PERCENTAGE = ATTR_FAT
     WATER_PERCENTAGE = ATTR_WATER
     BONE_MASS = ATTR_BONES

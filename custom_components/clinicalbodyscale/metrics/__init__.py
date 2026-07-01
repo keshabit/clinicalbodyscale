@@ -55,7 +55,7 @@ from ..profile import (
     ProfileFilter,
     build_profile_filter,
 )
-from ..util import get_age
+from ..util import get_age, get_ideal_weight
 from .body_score import get_body_score
 from .impedance import (
     get_bcm,
@@ -102,6 +102,17 @@ _METRIC_DEPS: dict[Metric, MetricInfo] = {
     Metric.IMPEDANCE_LOW: MetricInfo([], lambda c, s: None, 0),
     Metric.IMPEDANCE_HIGH: MetricInfo([], lambda c, s: None, 0),
     Metric.LAST_MEASUREMENT_TIME: MetricInfo([], lambda c, s: None),
+    # BUG FIX: HEIGHT and IDEAL_WEIGHT are seeded directly (see
+    # BodyScaleMetricsHandler.__init__) rather than computed through the
+    # topological recalculation pass, but they still need an entry here —
+    # subscribe() unconditionally looks up self._dependencies[metric] to
+    # decide how many decimals to round a replayed value to. Without this
+    # entry, subscribing to either metric after it has already been seeded
+    # (which is now always the case, since they're seeded at construction)
+    # would raise a KeyError and prevent the HEIGHT/IDEAL_WEIGHT sensor
+    # entities from being set up at all.
+    Metric.HEIGHT: MetricInfo([], lambda c, s: None, 0),
+    Metric.IDEAL_WEIGHT: MetricInfo([], lambda c, s: None, 2),
     # Weight only
     Metric.BMI: MetricInfo([Metric.WEIGHT], get_bmi, 1),
     Metric.BMR: MetricInfo([Metric.AGE, Metric.WEIGHT], get_bmr, 0),
@@ -190,6 +201,15 @@ _SOURCE_METRICS: frozenset[Metric] = frozenset(
         Metric.IMPEDANCE_LOW,
         Metric.IMPEDANCE_HIGH,
         Metric.LAST_MEASUREMENT_TIME,
+        # BUG FIX: HEIGHT and IDEAL_WEIGHT are static profile-derived values,
+        # not instantaneous scale readings, so they must never expire. Without
+        # this, they'd fall into the "derived" bucket below and be silently
+        # evicted by the 60s TTL — meaning even after being seeded at
+        # construction, the HEIGHT/IDEAL_WEIGHT sensors would show a value
+        # briefly and then flicker back to "unknown" between measurements
+        # (most users don't step on the scale more than once every 60s).
+        Metric.HEIGHT,
+        Metric.IDEAL_WEIGHT,
     }
 )
 
@@ -308,6 +328,24 @@ class BodyScaleMetricsHandler:
         self._available_metrics: MutableMapping[Metric, StateType | datetime] = (
             _MetricsStore(ttl=60)
         )
+
+        # BUG FIX: HEIGHT and IDEAL_WEIGHT are static/derived from profile
+        # config (not from a physical measurement), but were previously only
+        # ever seeded from inside _update_available_metric() — which only
+        # runs once a weight/impedance sensor event has been processed. On a
+        # freshly configured profile with no measurement yet (or if the
+        # scale sensor entity hasn't reported a state at HA startup), those
+        # two sensors would stay "unknown" indefinitely, since the seeding
+        # code's "not already present" guard means it only ever fires once,
+        # tied to the *timing* of the first measurement rather than to
+        # startup. Seeding them here — immediately, at handler construction —
+        # means the HEIGHT and IDEAL_WEIGHT sensors show a value as soon as
+        # the integration loads, regardless of whether a measurement has
+        # ever arrived. (subscribe() already replays the current value to
+        # any subscriber that attaches after this point, so sensors added
+        # by the platform after this constructor runs will still pick it up.)
+        self._available_metrics[Metric.HEIGHT] = float(self._config[CONF_HEIGHT])
+        self._available_metrics[Metric.IDEAL_WEIGHT] = get_ideal_weight(self._config)
 
         # Sensor problems: { "weight": "high", "impedance": "unavailable", ... }
         self._sensor_problems: dict[str, str] = {}
@@ -876,6 +914,17 @@ class BodyScaleMetricsHandler:
         self._available_metrics.setdefault(
             Metric.AGE, get_age(self._config[CONF_BIRTHDAY])
         )
+        # Inject Height and explicitly notify its sensor entity subscriber
+        if Metric.HEIGHT not in self._available_metrics:
+            self._available_metrics[Metric.HEIGHT] = float(self._config[CONF_HEIGHT])
+            for sub in self._subscribers.get(Metric.HEIGHT, []):
+                sub(self._available_metrics[Metric.HEIGHT])
+
+        # Inject Ideal Weight and explicitly notify its sensor entity subscriber
+        if Metric.IDEAL_WEIGHT not in self._available_metrics:
+            self._available_metrics[Metric.IDEAL_WEIGHT] = get_ideal_weight(self._config)
+            for sub in self._subscribers.get(Metric.IDEAL_WEIGHT, []):
+                sub(self._available_metrics[Metric.IDEAL_WEIGHT])
         self._available_metrics[metric] = state
 
         # Notify subscribers
