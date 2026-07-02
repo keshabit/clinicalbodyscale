@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="custom_components/images/icon.png" alt="ClinicalBodyScale Logo" width="180">
+  <img src="./images/icon.png" alt="ClinicalBodyScale Logo" width="180">
 </p>
 
 <h1 align="center">ClinicalBodyScale</h1>
